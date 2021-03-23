@@ -1,7 +1,7 @@
 ARG STEAMCMD_VERSION=latest
 ARG AMG_BUILD=latest
 ARG AMG_VERSION=v1.6.57
-FROM thmhoag/steamcmd:$STEAMCMD_VERSION AS base
+FROM drpsychick/steamcmd:$STEAMCMD_VERSION AS base
 
 USER root
 

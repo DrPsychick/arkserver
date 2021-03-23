@@ -33,12 +33,78 @@ echo "Cleaning up any leftover arkmanager files..."
 [ ! -d /ark/staging ] && mkdir /ark/staging
 [ ! -d /ark/saved ] && mkdir /ark/saved
 
-# migrate to new directory structure
-if [ -d /ark/server/ShooterGame/Saved ]; then
-  # move to /ark/saved
-  mv /ark/server/ShooterGame/Saved/* /ark/saved/ && ln -sf /ark/saved /ark/server/ShooterGame/Saved
+if [ ! -d /ark/server/ShooterGame/Binaries ]; then
+	echo "No game files found. Preparing for install..."
+	mkdir -p /ark/server/ShooterGame
+	ln -sf /ark/saved /ark/server/ShooterGame/Saved
+  mkdir -p /ark/server/ShooterGame/Saved/Config/LinuxServer
+	mkdir -p /ark/server/ShooterGame/Content/Mods
+	mkdir -p /ark/server/ShooterGame/Binaries/Linux/
+fi
+
+# default
+# /ark/server per server
+# /ark/server/ShooterGame/Saved is symlinked to /ark/saved
+
+# shared server directory
+# /ark/server is shared
+# /ark/server/ShooterGame/Saved is symlinked to /ark/saved
+
+# migrate Saved directory first
+if [ ! -L /ark/server/ShooterGame/Saved ]; then
+  if [ -d /ark/server/ShooterGame/Saved/SavedArks -a -d /ark/saved/SavedArks ]; then
+    echo "ABORT: cannot migrate, both directories have a save game"
+    ls -la /ark/server/ShooterGame/Saved/SavedArks
+    ls -la /ark/saved/SavedArks
+    exit 1
+  fi
+
+  # move all server specific files to /ark/saved
+  if [ -n "$(ls /ark/server/ShooterGame/Saved/)" ]; then
+    mv -f /ark/server/ShooterGame/Saved/* /ark/saved/
+  fi
+fi
+
+# migrate to shared server files
+if [ -n "$ARKSERVER_SHARED" -a -d "$ARKSERVER_SHARED" ]; then
+  # not migrated yet
+  if [ ! -L /ark/server ]; then
+    # migration: move server files
+    if [ ! -f $ARKSERVER_SHARED/ShooterGame/Binaries/Linux/ShooterGameServer
+        -a -f /ark/server/ShooterGame/Binaries/Linux/ShooterGameServer ]; then
+      mv /ark/server/* $ARKSERVER_SHARED/
+    fi
+
+    # both locations have server files?
+    if [ -r $ARKSERVER_SHARED/ShooterGame/Binaries/Linux/ShooterGameServer
+        -a -r /ark/server/ShooterGame/Binaries/Linux/ShooterGameServer ]; then
+      echo "Warn: discarding server file"
+      echo "rm -rf /ark/server/*"
+    fi
+
+    # link to shared server files in this directory
+    ln -sf $ARKSERVER_SHARED /ark/server
+  fi
+
+  # shared server files requires disabling staging
+  export am_arkStagingDir=
+fi
+
+# ensure that Saved directory is linked to /ark/saved
+if [ ! -L /ark/server/ShooterGame/Saved ]; then
+  echo "ABORT: Saved not symlinked"
+  ls -la /ark/server/ShooterGame/
+  ls -la /ark/server/ShooterGame/Saved
+  ls -la /ark/saved
+  exit 1
+  ln -sf /ark/saved /ark/server/ShooterGame/Saved
 fi
 [ ! -d /ark/saved/$am_ark_AltSaveDirectoryName ] && mkdir /ark/saved/$am_ark_AltSaveDirectoryName
+
+if [ "$ARKCLUSTER" = "true" ]; then
+  # link shared cluster directory
+  [ ! -L /ark/server/ShooterGame/Saved/clusters ] && ln -sf /arkclusters /ark/server/ShooterGame/Saved/clusters
+fi
 
 echo "Creating arkmanager.cfg from environment variables..."
 echo -e "# Ark Server Tools - arkmanager config\n# Generated from container environment variables\n\n" > /ark/config/arkmanager.cfg
@@ -46,31 +112,8 @@ if [ -f /ark/config/arkmanager_base.cfg ]; then
 	cat /ark/config/arkmanager_base.cfg >> /ark/config/arkmanager.cfg
 fi
 
-if [ -n "$ARKSERVER_SHARED" -a -d "$ARKSERVER_SHARED" ]; then
-  if [ ! -L /ark/server ]; then
-    # migration: move files
-    if [ ! -f $ARKSERVER_SHARED/ShooterGame/Binaries/Linux/ShooterGameServer -a -f /ark/server/ShooterGame/Binaries/Linux/ShooterGameServer ]; then
-      mv /ark/server/* $ARKSERVER_SHARED/
-    fi
-    # shared server files in this directory
-    ln -sf $ARKSERVER_SHARED /ark/server
-  fi
-  # shared server files requires disabling staging
-  export am_arkStagingDir=
-fi
-
 echo -e "\n\narkserverroot=\"/ark/server\"\n" >> /ark/config/arkmanager.cfg
 printenv | sed -n -r 's/am_(.*)=(.*)/\1=\"\2\"/ip' >> /ark/config/arkmanager.cfg
-
-if [ ! -d /ark/server/ShooterGame ]; then
-	echo "No game files found. Installing..."
-	mkdir -p /ark/server/ShooterGame
-	# whole `Saved` directory must be kept separate per server
-	ln -sf /ark/saved /ark/server/ShooterGame/Saved
-  mkdir -p /ark/server/ShooterGame/Saved/Config/LinuxServer
-	mkdir -p /ark/server/ShooterGame/Content/Mods
-	mkdir -p /ark/server/ShooterGame/Binaries/Linux/
-fi
 
 if [ ! -f /ark/config/crontab ]; then
 	echo "Creating crontab..."
@@ -116,12 +159,12 @@ fi
 [ -f /ark/config/Game.ini ] && ln -sf /ark/config/Game.ini /ark/server/ShooterGame/Saved/Config/LinuxServer/Game.ini
 [ -f /ark/config/GameUserSettings.ini ] && ln -sf /ark/config/GameUserSettings.ini /ark/server/ShooterGame/Saved/Config/LinuxServer/GameUserSettings.ini
 
-if [[ "$VALIDATE_SAVE_EXISTS" = true && ! -z "$am_serverMap" ]]; then
+if [ "$VALIDATE_SAVE_EXISTS" = "true" -a ! -z "$am_serverMap" ]; then
 	savepath="/ark/server/ShooterGame/Saved/$am_ark_AltSaveDirectoryName"
 	savefile="$am_serverMap.ark"
 	echo "Validating that a save file exists for $am_serverMap"
 	echo "Checking $savepath"
-	if [[ ! -f "$savepath/$savefile" ]]; then
+	if [! -f "$savepath/$savefile" ]; then
 		echo "$savefile not found!"
 		echo "Attempting to notify via Discord..."
 		arkmanager notify "Critical error: unable to find $savefile in $savepath!"
@@ -134,11 +177,6 @@ if [[ "$VALIDATE_SAVE_EXISTS" = true && ! -z "$am_serverMap" ]]; then
 	fi
 else
 	echo "Save file validation is not enabled."
-fi
-
-if [[ "$ARKCLUSTER" = true ]]; then
-  # link shared cluster directory
-  [ ! -L /ark/server/ShooterGame/Saved/clusters ] && ln -sf /arkclusters /ark/server/ShooterGame/Saved/clusters
 fi
 
 if [[ $BACKUP_ONSTART = true ]]; then
