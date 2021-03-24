@@ -2,6 +2,7 @@
 
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 REPODIR="$(dirname "$SCRIPTDIR")"
+ARKSERVER=${ARKSERVER_SHARED:-"/ark/server"}
 
 # always fail script if a cmd fails
 set -eo pipefail
@@ -11,92 +12,49 @@ echo "# Ark Server - " `date`
 echo "###########################################################################"
 
 echo "Ensuring correct permissions..."
-sudo find /ark -not -user steam -o -not -group steam -exec chown -v steam:steam {} \; 
+sudo find /ark -not -user steam -o -not -group steam -exec chown -v steam:steam {} \;
 sudo find /home/steam -not -user steam -o -not -group steam -exec chown -v steam:steam {} \;
 
 # Remove arkmanager tracking files if they exist
 # They can cause issues with starting the server multiple times
 # due to the restart command not completing when the container exits
 echo "Cleaning up any leftover arkmanager files..."
-[ -f /ark/server/ShooterGame/Saved/.ark-warn-main.lock ] && rm -rf /ark/server/ShooterGame/Saved/.ark-warn-main.lock
-[ -f /ark/server/ShooterGame/Saved/.ark-update.lock ] && rm -rf /ark/server/ShooterGame/Saved/.ark-update.lock
-[ -f /ark/server/ShooterGame/Saved/.ark-update.time ] && rm -rf /ark/server/ShooterGame/Saved/.ark-update.time
-[ -f /ark/server/ShooterGame/Saved/.arkmanager-main.pid ] && rm -rf /ark/server/ShooterGame/Saved/.arkmanager-main.pid
-[ -f /ark/server/ShooterGame/Saved/.arkserver-main.pid ] && rm -rf /ark/server/ShooterGame/Saved/.arkserver-main.pid
-[ -f /ark/server/ShooterGame/Saved/.autorestart ] && rm -rf /ark/server/ShooterGame/Saved/.autorestart
-[ -f /ark/server/ShooterGame/Saved/.autorestart-main ] && rm -rf /ark/server/ShooterGame/Saved/.autorestart-main
+[ -f $ARKSERVER/ShooterGame/Saved/.ark-warn-main.lock ] && rm -rf $ARKSERVER/ShooterGame/Saved/.ark-warn-main.lock
+[ -f $ARKSERVER/ShooterGame/Saved/.ark-update.lock ] && rm -rf $ARKSERVER/ShooterGame/Saved/.ark-update.lock
+[ -f $ARKSERVER/ShooterGame/Saved/.ark-update.time ] && rm -rf $ARKSERVER/ShooterGame/Saved/.ark-update.time
+[ -f $ARKSERVER/ShooterGame/Saved/.arkmanager-main.pid ] && rm -rf $ARKSERVER/ShooterGame/Saved/.arkmanager-main.pid
+[ -f $ARKSERVER/ShooterGame/Saved/.arkserver-main.pid ] && rm -rf $ARKSERVER/ShooterGame/Saved/.arkserver-main.pid
+[ -f $ARKSERVER/ShooterGame/Saved/.autorestart ] && rm -rf $ARKSERVER/ShooterGame/Saved/.autorestart
+[ -f $ARKSERVER/ShooterGame/Saved/.autorestart-main ] && rm -rf $ARKSERVER/ShooterGame/Saved/.autorestart-main
 
 # Create directories if they don't exist
 [ ! -d /ark/config ] && mkdir /ark/config
 [ ! -d /ark/log ] && mkdir /ark/log
 [ ! -d /ark/backup ] && mkdir /ark/backup
 [ ! -d /ark/staging ] && mkdir /ark/staging
-[ ! -d /ark/saved ] && mkdir /ark/saved
 
-if [ ! -d /ark/server/ShooterGame/Binaries ]; then
+if [ ! -d $ARKSERVER/ShooterGame/Binaries ]; then
 	echo "No game files found. Preparing for install..."
-	mkdir -p /ark/server/ShooterGame
-	ln -sf /ark/saved /ark/server/ShooterGame/Saved
-  mkdir -p /ark/server/ShooterGame/Saved/Config/LinuxServer
-	mkdir -p /ark/server/ShooterGame/Content/Mods
-	mkdir -p /ark/server/ShooterGame/Binaries/Linux/
+	mkdir -p $ARKSERVER/ShooterGame
+  mkdir -p $ARKSERVER/ShooterGame/Saved/Config/LinuxServer
+  mkdir -p $ARKSERVER/ShooterGame/Saved/$am_ark_AltSaveDirectoryName
+	mkdir -p $ARKSERVER/ShooterGame/Content/Mods
+	mkdir -p $ARKSERVER/ShooterGame/Binaries/Linux/
 fi
 
-# migrate Saved directory first
-if [ ! -L /ark/server/ShooterGame/Saved ]; then
-  if [ -d /ark/server/ShooterGame/Saved/SavedArks -a -d /ark/saved/SavedArks ]; then
-    echo "ABORT: cannot migrate, both directories have a save game"
-    ls -la /ark/server/ShooterGame/Saved/SavedArks
-    ls -la /ark/saved/SavedArks
+if [ -n "$ARKSERVER_SHARED" ]; then
+  echo "Shared server files in $ARKSERVER_SHARED..."
+  if [ -z "$(mount | grep "on $ARKSERVER_SHARED/ShooterGame/Saved")" ]; then
+    echo "===> ABORT !"
+    echo "You seem to be using a shared server directory: '$ARKSERVER_SHARED'"
+    echo "But you have NOT mounted your game instance saved directory to '$ARKSERVER_SHARED/ShooterGame/Saved'"
     exit 1
   fi
-
-  # move all server specific files to /ark/saved
-  if [ -n "$(ls /ark/server/ShooterGame/Saved/)" ]; then
-    mv -f /ark/server/ShooterGame/Saved/* /ark/saved/
-  fi
 fi
 
-# migrate to shared server files
-if [ -n "$ARKSERVER_SHARED" -a -d "$ARKSERVER_SHARED" ]; then
-  # not migrated yet
-  if [ ! -L /ark/server ]; then
-    # migration: move server files
-    if [ ! -f $ARKSERVER_SHARED/ShooterGame/Binaries/Linux/ShooterGameServer
-        -a -f /ark/server/ShooterGame/Binaries/Linux/ShooterGameServer ]; then
-      mv /ark/server/* $ARKSERVER_SHARED/
-    fi
-
-    # both locations have server files?
-    if [ -r $ARKSERVER_SHARED/ShooterGame/Binaries/Linux/ShooterGameServer
-        -a -r /ark/server/ShooterGame/Binaries/Linux/ShooterGameServer ]; then
-      echo "Warn: discarding server file"
-      echo "rm -rf /ark/server/*"
-    fi
-
-    # link to shared server files in this directory
-    ln -sf $ARKSERVER_SHARED /ark/server
-  fi
-
-  # shared server files requires disabling staging
-  export am_arkStagingDir=
-fi
-
-# /ark/server/ShooterGame/Saved is always symlinked to /ark/saved
-# ensure that Saved directory is linked to /ark/saved
-if [ ! -L /ark/server/ShooterGame/Saved ]; then
-  echo "ABORT: Saved not symlinked"
-  ls -la /ark/server/ShooterGame/
-  ls -la /ark/server/ShooterGame/Saved
-  ls -la /ark/saved
-  exit 1
-  ln -sf /ark/saved /ark/server/ShooterGame/Saved
-fi
-[ ! -d /ark/saved/$am_ark_AltSaveDirectoryName ] && mkdir /ark/saved/$am_ark_AltSaveDirectoryName
-
-if [ "$ARKCLUSTER" = "true" ]; then
-  # link shared cluster directory
-  [ ! -L /ark/server/ShooterGame/Saved/clusters ] && ln -sf /arkclusters /ark/server/ShooterGame/Saved/clusters
+if [ "$ARKCLUSTER" = "true" -a ! -L $ARKSERVER/ShooterGame/Saved/clusters ]; then
+  echo "Linking 'clusters' to '/arkclusters'..."
+  ln -sf /arkclusters $ARKSERVER/ShooterGame/Saved/clusters
 fi
 
 echo "Creating arkmanager.cfg from environment variables..."
@@ -105,7 +63,7 @@ if [ -f /ark/config/arkmanager_base.cfg ]; then
 	cat /ark/config/arkmanager_base.cfg >> /ark/config/arkmanager.cfg
 fi
 
-echo -e "\n\narkserverroot=\"/ark/server\"\n" >> /ark/config/arkmanager.cfg
+echo -e "\n\narkserverroot=\"$ARKSERVER\"\n" >> /ark/config/arkmanager.cfg
 printenv | sed -n -r 's/am_(.*)=(.*)/\1=\"\2\"/ip' >> /ark/config/arkmanager.cfg
 
 if [ ! -f /ark/config/crontab ]; then
@@ -146,14 +104,13 @@ else
 fi
 
 # Create symlinks for configs
-# INFO: this is no longer needed and kept only for backwards compatibility. Simply edit your config in the `/ark/saved` directory
-[ -f /ark/config/AllowedCheaterSteamIDs.txt ] && ln -sf /ark/config/AllowedCheaterSteamIDs.txt /ark/server/ShooterGame/Saved/AllowedCheaterSteamIDs.txt
-[ -f /ark/config/Engine.ini ] && ln -sf /ark/config/Engine.ini /ark/server/ShooterGame/Saved/Config/LinuxServer/Engine.ini
-[ -f /ark/config/Game.ini ] && ln -sf /ark/config/Game.ini /ark/server/ShooterGame/Saved/Config/LinuxServer/Game.ini
-[ -f /ark/config/GameUserSettings.ini ] && ln -sf /ark/config/GameUserSettings.ini /ark/server/ShooterGame/Saved/Config/LinuxServer/GameUserSettings.ini
+[ -f /ark/config/AllowedCheaterSteamIDs.txt ] && ln -sf /ark/config/AllowedCheaterSteamIDs.txt $ARKSERVER/ShooterGame/Saved/AllowedCheaterSteamIDs.txt
+[ -f /ark/config/Engine.ini ] && ln -sf /ark/config/Engine.ini $ARKSERVER/ShooterGame/Saved/Config/LinuxServer/Engine.ini
+[ -f /ark/config/Game.ini ] && ln -sf /ark/config/Game.ini $ARKSERVER/ShooterGame/Saved/Config/LinuxServer/Game.ini
+[ -f /ark/config/GameUserSettings.ini ] && ln -sf /ark/config/GameUserSettings.ini $ARKSERVER/ShooterGame/Saved/Config/LinuxServer/GameUserSettings.ini
 
 if [ "$VALIDATE_SAVE_EXISTS" = "true" -a ! -z "$am_serverMap" ]; then
-	savepath="/ark/server/ShooterGame/Saved/$am_ark_AltSaveDirectoryName"
+	savepath="$ARKSERVER/ShooterGame/Saved/$am_ark_AltSaveDirectoryName"
 	savefile="$am_serverMap.ark"
 	echo "Validating that a save file exists for $am_serverMap"
 	echo "Checking $savepath"
@@ -195,11 +152,14 @@ if [ $LOG_RCONCHAT -gt 0 ]; then
   bash -c ./log.sh &
 fi
 
-if [ "$TEST_MIGRATION" = "true" ]; then
-  echo "TEST Migration result: ARKSERVER_SHARED=$ARKSERVER_SHARED ARKCLUSTER=$ARKCLUSTER"
-  ls -la /ark
-  ls -la /ark/server/ShooterGame/
-  ls -la /ark/server/ShooterGame/Saved/
+if [ "$LIST_MOUNTS" = "true" ]; then
+  echo "LIST Mounts:"
+  echo "ARKSERVER_SHARED=$ARKSERVER_SHARED ARKCLUSTER=$ARKCLUSTER"
+  for d in /ark /arkserver /arkclusters $ARKSERVER/ShooterGame/Saved/ $ARKSERVER/ShooterGame/Saved/SavedArks; do
+    echo "--> $d"
+    ls -la $d
+  done
+  mount | grep "on /ark"
   exit 0
 fi
 
