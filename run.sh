@@ -15,7 +15,8 @@ echo "Ensuring correct permissions..."
 sudo find /ark -not -user steam -o -not -group steam -exec chown -v steam:steam {} \;
 sudo find /home/steam -not -user steam -o -not -group steam -exec chown -v steam:steam {} \;
 if [ -n "$ARKSERVER_SHARED" ]; then
-  sudo find $ARKSERVER_SHARED -not -user steam -o -not -group steam -exec chown -v steam:steam {} \;
+  # directory is created when something is mounted to 'Saved'
+  sudo chown steam:steam $ARKSERVER_SHARED/ShooterGame
   echo "Shared server files in $ARKSERVER_SHARED..."
   if [ -z "$(mount | grep "on $ARKSERVER_SHARED/ShooterGame/Saved")" ]; then
     echo "===> ABORT !"
