@@ -14,7 +14,16 @@ echo "##########################################################################
 echo "Ensuring correct permissions..."
 sudo find /ark -not -user steam -o -not -group steam -exec chown -v steam:steam {} \;
 sudo find /home/steam -not -user steam -o -not -group steam -exec chown -v steam:steam {} \;
-[ -n "$ARKSERVER_SHARED" ] && sudo find $ARKSERVER_SHARED -not -user steam -o -not -group steam -exec chown -v steam:steam {} \;
+if [ -n "$ARKSERVER_SHARED" ]; then
+  sudo find $ARKSERVER_SHARED -not -user steam -o -not -group steam -exec chown -v steam:steam {} \;
+  echo "Shared server files in $ARKSERVER_SHARED..."
+  if [ -z "$(mount | grep "on $ARKSERVER_SHARED/ShooterGame/Saved")" ]; then
+    echo "===> ABORT !"
+    echo "You seem to be using a shared server directory: '$ARKSERVER_SHARED'"
+    echo "But you have NOT mounted your game instance saved directory to '$ARKSERVER_SHARED/ShooterGame/Saved'"
+    exit 1
+  fi
+fi
 
 # Remove arkmanager tracking files if they exist
 # They can cause issues with starting the server multiple times
@@ -41,16 +50,6 @@ if [ ! -d $ARKSERVER/ShooterGame/Binaries ]; then
   mkdir -p $ARKSERVER/ShooterGame/Saved/$am_ark_AltSaveDirectoryName
 	mkdir -p $ARKSERVER/ShooterGame/Content/Mods
 	mkdir -p $ARKSERVER/ShooterGame/Binaries/Linux/
-fi
-
-if [ -n "$ARKSERVER_SHARED" ]; then
-  echo "Shared server files in $ARKSERVER_SHARED..."
-  if [ -z "$(mount | grep "on $ARKSERVER_SHARED/ShooterGame/Saved")" ]; then
-    echo "===> ABORT !"
-    echo "You seem to be using a shared server directory: '$ARKSERVER_SHARED'"
-    echo "But you have NOT mounted your game instance saved directory to '$ARKSERVER_SHARED/ShooterGame/Saved'"
-    exit 1
-  fi
 fi
 
 if [ "$ARKCLUSTER" = "true" -a ! -L $ARKSERVER/ShooterGame/Saved/clusters ]; then
