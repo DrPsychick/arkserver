@@ -169,7 +169,10 @@ if [ "$LIST_MOUNTS" = "true" ]; then
     echo "--> $d"
     ls -la $d
   done
-  [ "$ARKCLUSTER" = "true" ] && ls -la $ARKSERVER/ShooterGame/Saved/clusters
+  if [ "$ARKCLUSTER" = "true" ]; then
+    echo "--> $ARKSERVER/ShooterGame/Saved/clusters"
+    ls -la $ARKSERVER/ShooterGame/Saved/clusters
+  fi
   mount | grep "on /ark"
   exit 0
 fi
