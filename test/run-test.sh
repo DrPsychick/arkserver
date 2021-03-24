@@ -1,6 +1,6 @@
 #!/bin/bash
 
-IMAGE=drpsychick/arkclusters
+IMAGE=drpsychick/arkcluster
 TAG=focal
 (cd ..; docker build --build-arg STEAMCMD_VERSION=$TAG --tag $IMAGE:$TAG .)
 #docker pull $IMAGE:$TAG
@@ -10,7 +10,6 @@ function testDirectoriesExist() {
   if [ ! -d "$1/backup" ]; then nok=$((nok+1)); echo "/backup is missing!"; fi
   if [ ! -d "$1/config" ]; then nok=$((nok+1)); echo "/config is missing!"; fi
   if [ ! -d "$1/log" ]; then nok=$((nok+1)); echo "/log is missing!"; fi
-  if [ ! -d "$1/saved" ]; then nok=$((nok+1)); echo "/saved is missing!"; fi
 
   if [ $nok -gt 0 ]; then
     echo "FAIL: $nok errors"

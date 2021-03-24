@@ -43,7 +43,8 @@ if [ ! -d $ARKSERVER/ShooterGame/Binaries ]; then
 fi
 
 if [ -n "$ARKSERVER_SHARED" ]; then
-  echo "Shared server files in $ARKSERVER_SHARED..."
+  echo "Shared server files in $ARKSERVER_SHARED, ensuring correct permissions..."
+	sudo find $ARKSERVER -not -user steam -o -not -group steam -exec chown -v steam:steam {} \;
   if [ -z "$(mount | grep "on $ARKSERVER_SHARED/ShooterGame/Saved")" ]; then
     echo "===> ABORT !"
     echo "You seem to be using a shared server directory: '$ARKSERVER_SHARED'"
