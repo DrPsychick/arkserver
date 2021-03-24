@@ -6,7 +6,16 @@ FROM drpsychick/steamcmd:$STEAMCMD_VERSION AS base
 USER root
 
 RUN apt-get update \
-    && apt-get install -y curl cron bzip2 perl-modules lsof libc6-i386 lib32gcc1 sudo \
+    && apt-get install -y \
+    curl \
+    cron \
+    bzip2 \
+    perl-modules \
+    lsof \
+    libc6-i386 \
+    lib32gcc1 \
+    libsdl2-2.0.0:i386 \
+    sudo \
     && apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/* \

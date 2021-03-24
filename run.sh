@@ -42,14 +42,6 @@ if [ ! -d /ark/server/ShooterGame/Binaries ]; then
 	mkdir -p /ark/server/ShooterGame/Binaries/Linux/
 fi
 
-# default
-# /ark/server per server
-# /ark/server/ShooterGame/Saved is symlinked to /ark/saved
-
-# shared server directory
-# /ark/server is shared
-# /ark/server/ShooterGame/Saved is symlinked to /ark/saved
-
 # migrate Saved directory first
 if [ ! -L /ark/server/ShooterGame/Saved ]; then
   if [ -d /ark/server/ShooterGame/Saved/SavedArks -a -d /ark/saved/SavedArks ]; then
@@ -90,6 +82,7 @@ if [ -n "$ARKSERVER_SHARED" -a -d "$ARKSERVER_SHARED" ]; then
   export am_arkStagingDir=
 fi
 
+# /ark/server/ShooterGame/Saved is always symlinked to /ark/saved
 # ensure that Saved directory is linked to /ark/saved
 if [ ! -L /ark/server/ShooterGame/Saved ]; then
   echo "ABORT: Saved not symlinked"
@@ -179,7 +172,7 @@ else
 	echo "Save file validation is not enabled."
 fi
 
-if [[ $BACKUP_ONSTART = true ]]; then
+if [ "$BACKUP_ONSTART" = "true" ]; then
 	echo "Backing up on start..."
 	arkmanager backup
 else
@@ -200,6 +193,14 @@ trap stop TERM
 # log from RCON to stdout
 if [ $LOG_RCONCHAT -gt 0 ]; then
   bash -c ./log.sh &
+fi
+
+if [ "$TEST_MIGRATION" = "true" ]; then
+  echo "TEST Migration result: ARKSERVER_SHARED=$ARKSERVER_SHARED ARKCLUSTER=$ARKCLUSTER"
+  ls -la /ark
+  ls -la /ark/server/ShooterGame/
+  ls -la /ark/server/ShooterGame/Saved/
+  exit 0
 fi
 
 arkmanager start --no-background --verbose &
