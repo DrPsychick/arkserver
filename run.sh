@@ -16,7 +16,7 @@ sudo find /ark -not -user steam -o -not -group steam -exec chown -v steam:steam 
 sudo find /home/steam -not -user steam -o -not -group steam -exec chown -v steam:steam {} \;
 if [ -n "$ARKSERVER_SHARED" ]; then
   # directory is created when something is mounted to 'Saved'
-  sudo chown steam:steam $ARKSERVER_SHARED/ShooterGame
+  [ -d "$ARKSERVER_SHARED/ShooterGame" ] && sudo chown steam:steam $ARKSERVER_SHARED/ShooterGame
   echo "Shared server files in $ARKSERVER_SHARED..."
   if [ -z "$(mount | grep "on $ARKSERVER_SHARED/ShooterGame/Saved")" ]; then
     echo "===> ABORT !"
