@@ -14,14 +14,27 @@ echo "##########################################################################
 echo "Ensuring correct permissions..."
 sudo find /ark -not -user steam -o -not -group steam -exec chown -v steam:steam {} \;
 sudo find /home/steam -not -user steam -o -not -group steam -exec chown -v steam:steam {} \;
+
 if [ -n "$ARKSERVER_SHARED" ]; then
   # directory is created when something is mounted to 'Saved'
   [ -d "$ARKSERVER_SHARED/ShooterGame" ] && sudo chown steam:steam $ARKSERVER_SHARED/ShooterGame
   echo "Shared server files in $ARKSERVER_SHARED..."
-  if [ -z "$(mount | grep "on $ARKSERVER_SHARED/ShooterGame/Saved")" ]; then
+  if [ -z "$(mount | grep "on $ARKSERVER_SHARED/ShooterGame/Saved ")" ]; then
     echo "===> ABORT !"
     echo "You seem to be using a shared server directory: '$ARKSERVER_SHARED'"
     echo "But you have NOT mounted your game instance saved directory to '$ARKSERVER_SHARED/ShooterGame/Saved'"
+    exit 1
+  fi
+fi
+
+if [ "$ARKCLUSTER" = "true" ]; then
+  # directory is created when something is mounted to 'clusters'
+  [ -d "$ARKSERVER_SHARED/ShooterGame/Saved" ] && chown steam:steam $ARKSERVER_SHARED/ShooterGame/Saved
+  echo "Shared clusters files in $ARKSERVER_SHARED/ShooterGame/Saved/clusters..."
+  if [ -z "$(mount | grep "on $ARKSERVER_SHARED/ShooterGame/Saved/clusters ")" ]; then
+    echo "===> ABORT !"
+    echo "You seem to using ARKCLUSTER=true"
+    echo "But you have NOT mounted your shared clusters directory to '$ARKSERVER_SHARED/ShooterGame/Saved/clusters'"
     exit 1
   fi
 fi
@@ -53,10 +66,6 @@ if [ ! -d $ARKSERVER/ShooterGame/Binaries ]; then
 	mkdir -p $ARKSERVER/ShooterGame/Binaries/Linux/
 fi
 
-if [ "$ARKCLUSTER" = "true" -a ! -L $ARKSERVER/ShooterGame/Saved/clusters ]; then
-  echo "Linking 'clusters' to '/arkclusters'..."
-  ln -sf /arkclusters $ARKSERVER/ShooterGame/Saved/clusters
-fi
 
 echo "Creating arkmanager.cfg from environment variables..."
 echo -e "# Ark Server Tools - arkmanager config\n# Generated from container environment variables\n\n" > /ark/config/arkmanager.cfg
@@ -156,10 +165,11 @@ fi
 if [ "$LIST_MOUNTS" = "true" ]; then
   echo "LIST Mounts:"
   echo "ARKSERVER_SHARED=$ARKSERVER_SHARED ARKCLUSTER=$ARKCLUSTER"
-  for d in /ark /arkserver /arkclusters $ARKSERVER/ShooterGame/Saved/ $ARKSERVER/ShooterGame/Saved/SavedArks; do
+  for d in /ark $ARKSERVER_SHARED $ARKSERVER/ShooterGame/Saved/ $ARKSERVER/ShooterGame/Saved/SavedArks; do
     echo "--> $d"
     ls -la $d
   done
+  [ "$ARKCLUSTER" = "true" ] && ls -la $ARKSERVER/ShooterGame/Saved/clusters
   mount | grep "on /ark"
   exit 0
 fi

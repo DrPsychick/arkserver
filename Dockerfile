@@ -69,6 +69,7 @@ VOLUME /home/steam/.steam/steamapps
 VOLUME /ark
 # optionally shared volumes between servers in a cluster
 VOLUME /arkserver
-VOLUME /arkclusters
+# mount /arkserver/ShooterGame/Saved seperate for each server
+# mount /arkserver/ShooterGame/Saved/clusters shared for all servers
 
 CMD [ "./run.sh" ]

@@ -62,7 +62,7 @@ function testNewSharedServer() {
     --env-file $serverdir.env \
     -v $PWD/$serverdir:/ark \
     -v $PWD/$serverdir/saved:/arkserver/ShooterGame/Saved \
-    -v $PWD/arkclusters:/arkclusters \
+    -v $PWD/arkclusters:/arkserver/ShooterGame/Saved/clusters \
     -v $PWD/arkserver:/arkserver \
     -e LIST_MOUNTS=true \
     $IMAGE:$TAG
@@ -87,7 +87,7 @@ function testMigratedServer() {
     --env-file $serverdir.env \
     -v $PWD/$serverdir:/ark \
     -v $PWD/$serverdir/saved:/arkserver/ShooterGame/Saved \
-    -v $PWD/arkclusters:/arkclusters \
+    -v $PWD/arkclusters:/arkserver/ShooterGame/Saved/clusters \
     -v $PWD/arkserver:/arkserver \
     -e LIST_MOUNTS=true \
     $IMAGE:$TAG
@@ -111,7 +111,7 @@ function testSharedMount() {
     --env-file $serverdir.env \
     -v $PWD/$serverdir:/ark \
     -v $PWD/$serverdir/saved:/arkserver/ShooterGame/Saved \
-    -v $PWD/arkclusters:/arkclusters \
+    -v $PWD/arkclusters:/arkserver/ShooterGame/Saved/clusters \
     -v $PWD/arkserver:/arkserver \
     -e LIST_MOUNTS=true \
     $IMAGE:$TAG
