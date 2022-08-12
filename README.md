@@ -1,3 +1,11 @@
+# 👉 NEW LOCATION: [SickHub/arkserver](https://github.com/SickHub/arkserver) 👈
+Moved the repo to be able to maintain it. Unfortunately my PR has not been merged and the maintainer no longer reacted.
+
+
+
+
+
+
 [![Travis CI Build Status](https://img.shields.io/travis/thmhoag/arkserver/master?label=Travis%20CI&style=flat-square)](https://travis-ci.org/github/thmhoag/arkserver)
 [![Docker Build Status](https://img.shields.io/docker/cloud/build/thmhoag/arkserver?style=flat-square)](https://hub.docker.com/r/thmhoag/arkserver/builds/)
 [![Docker Pulls](https://img.shields.io/docker/pulls/thmhoag/arkserver.svg?style=flat-square)](https://hub.docker.com/r/thmhoag/arkserver/) 
